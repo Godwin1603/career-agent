@@ -41,7 +41,7 @@ async def test_enrich_job_success(session: AsyncSession):
     session.add(job)
     await session.commit()
 
-    repo = JobRepository(session)
+    JobRepository(session)
 
     mock_response = AIEnrichmentResponse(
         company_name="Acme Corp",
@@ -84,7 +84,7 @@ async def test_enrich_job_retryable_error(session: AsyncSession):
     session.add(job)
     await session.commit()
 
-    repo = JobRepository(session)
+    JobRepository(session)
     ai_client = MockGeminiClient(exception_to_raise=AIRetryableError("Timeout"))
     service = JobEnrichmentService(session, ai_client)
 
@@ -112,7 +112,7 @@ async def test_enrich_job_validation_error(session: AsyncSession):
     session.add(job)
     await session.commit()
 
-    repo = JobRepository(session)
+    JobRepository(session)
     ai_client = MockGeminiClient(exception_to_raise=AIValidationError("Malformed JSON"))
     service = JobEnrichmentService(session, ai_client)
 
@@ -128,7 +128,7 @@ async def test_enrich_job_validation_error(session: AsyncSession):
 
 @pytest.mark.asyncio
 async def test_enrich_job_not_found(session: AsyncSession):
-    repo = JobRepository(session)
+    JobRepository(session)
     ai_client = MockGeminiClient()
     service = JobEnrichmentService(session, ai_client)
 
