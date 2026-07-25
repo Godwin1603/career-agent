@@ -8,7 +8,7 @@ def setup_logging(log_level: int = logging.INFO) -> None:
     Outputs to stdout for Cloud Run compatibility.
     """
     log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    
+
     # Configure root logger
     logging.basicConfig(
         level=log_level,
