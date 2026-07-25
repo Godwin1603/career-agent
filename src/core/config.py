@@ -49,6 +49,7 @@ class Settings(BaseSettings):
     JOB_EXPIRY_DAYS: int = 14
     STALE_APPLICATION_WINDOW_MINUTES: int = 90
     CLEANUP_RUN_INTERVAL_MINUTES: int = 30
+    BROWSER_TIMEOUT_MS: int = 30000
 
     model_config = SettingsConfigDict(
         env_file=".env",
