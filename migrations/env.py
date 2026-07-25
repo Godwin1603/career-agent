@@ -6,7 +6,8 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-# Import our settings and base model
+# Import the model registry to ensure all models are registered on Base.metadata
+import src.core.model_registry  # noqa: F401
 from src.core.config import settings
 from src.core.database import Base
 

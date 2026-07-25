@@ -15,6 +15,7 @@ async def test_liveness_probe():
     assert response.status_code == 200
     assert response.json() == {"status": "alive"}
 
+
 @pytest.mark.asyncio
 async def test_readiness_probe_fails_without_db():
     """

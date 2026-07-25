@@ -27,6 +27,7 @@ async_session_maker = async_sessionmaker(
     autoflush=False,
 )
 
+
 # Base class for all SQLAlchemy declarative models (SQLAlchemy 2.x style)
 class Base(DeclarativeBase):
     pass
