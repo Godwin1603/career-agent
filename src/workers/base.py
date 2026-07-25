@@ -13,6 +13,7 @@ Concrete workers only need to:
 """
 
 import logging
+import time
 import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
@@ -76,6 +77,7 @@ class BaseApplicationWorker(ABC):
             WorkerResult with the outcome of the strategy execution.
         """
         application: Optional[Application] = None
+        start_time = time.monotonic()
 
         try:
             # 1. Load entities
@@ -83,13 +85,21 @@ class BaseApplicationWorker(ABC):
             job = await self._load_job(job_id)
             resume = await self._load_resume(job_id)
 
-            # 2. Validate state
+            # 2. Validate state (pre-execution idempotency check)
             self._validate_application_state(application)
 
-            # 3. Transition to in_progress
+            # 3. Transition to in_progress (atomic with event)
             await self._transition_to_in_progress(application)
 
-            # 4. Build context and execute strategy
+            # 4. Re-validate after transition (idempotency guard against
+            #    concurrent workers that may have already completed this)
+            if application.status != ApplicationStatus.in_progress:
+                raise WorkerTerminalError(
+                    f"Application {application.id} state changed unexpectedly "
+                    f"during transition: {application.status.value}"
+                )
+
+            # 5. Build context and execute strategy
             context = WorkerContext(
                 application=application,
                 job=job,
@@ -98,7 +108,12 @@ class BaseApplicationWorker(ABC):
             strategy = self._get_strategy()
             result = await strategy.execute(context)
 
-            # 5. Persist outcome
+            # 6. Enrich result metadata with timing and attempt info
+            execution_ms = (time.monotonic() - start_time) * 1000
+            result.metadata["execution_time_ms"] = round(execution_ms, 2)
+            result.metadata["attempt_number"] = application.attempt_count
+
+            # 7. Persist outcome (atomic with event)
             await self._persist_outcome(application, result)
 
             return result
@@ -112,9 +127,16 @@ class BaseApplicationWorker(ABC):
                     "error": str(e),
                 },
             )
+            execution_ms = (time.monotonic() - start_time) * 1000
             result = WorkerResult(
                 outcome=WorkerOutcome.terminal_failure,
                 error_message=str(e),
+                metadata={
+                    "execution_time_ms": round(execution_ms, 2),
+                    "attempt_number": (
+                        application.attempt_count if application is not None else 0
+                    ),
+                },
             )
             if application is not None:
                 await self._persist_outcome(application, result)
@@ -129,9 +151,16 @@ class BaseApplicationWorker(ABC):
                     "error": str(e),
                 },
             )
+            execution_ms = (time.monotonic() - start_time) * 1000
             result = WorkerResult(
                 outcome=WorkerOutcome.retryable_failure,
                 error_message=str(e),
+                metadata={
+                    "execution_time_ms": round(execution_ms, 2),
+                    "attempt_number": (
+                        application.attempt_count if application is not None else 0
+                    ),
+                },
             )
             if application is not None:
                 await self._persist_outcome(application, result)
@@ -146,9 +175,16 @@ class BaseApplicationWorker(ABC):
                     "error": e.__class__.__name__,
                 },
             )
+            execution_ms = (time.monotonic() - start_time) * 1000
             result = WorkerResult(
                 outcome=WorkerOutcome.terminal_failure,
                 error_message=f"Unexpected error: {e.__class__.__name__}",
+                metadata={
+                    "execution_time_ms": round(execution_ms, 2),
+                    "attempt_number": (
+                        application.attempt_count if application is not None else 0
+                    ),
+                },
             )
             if application is not None:
                 await self._persist_outcome(application, result)
@@ -174,19 +210,57 @@ class BaseApplicationWorker(ABC):
 
     async def _load_resume(self, job_id: uuid.UUID) -> Optional[Resume]:
         """
-        Load a resume for the job.
-        Attempts tailored first, falls back to base.
-        Returns None if no resume is available (strategies may choose how to handle).
+        Explicit resume selection for the job.
+
+        Priority order:
+            1. Tailored resume (job-specific)
+            2. Base resume (fallback)
+            3. None (no resume available — strategy decides how to handle)
         """
         resume = await self._resume_repo.get_tailored_for_job(job_id)
         if resume is not None:
+            logger.info(
+                "Selected tailored resume",
+                extra={
+                    "job_id": str(job_id),
+                    "resume_id": str(resume.id),
+                    "strategy": self.strategy_type.value,
+                    "resume_type": "tailored",
+                },
+            )
             return resume
-        return await self._resume_repo.get_base_resume()
+
+        resume = await self._resume_repo.get_base_resume()
+        if resume is not None:
+            logger.info(
+                "Falling back to base resume",
+                extra={
+                    "job_id": str(job_id),
+                    "resume_id": str(resume.id),
+                    "strategy": self.strategy_type.value,
+                    "resume_type": "base",
+                },
+            )
+            return resume
+
+        logger.warning(
+            "No resume available",
+            extra={
+                "job_id": str(job_id),
+                "strategy": self.strategy_type.value,
+            },
+        )
+        return None
 
     def _validate_application_state(self, application: Application) -> None:
         """
         Validate that the application is in a state that allows processing.
-        Only pending applications can be picked up by workers.
+
+        Processable states: pending, failed (retry).
+        Non-processable: success, in_progress, permanently_failed, skipped.
+
+        The in_progress check prevents duplicate submissions if a worker
+        retries after partial completion.
         """
         if application.status not in (
             ApplicationStatus.pending,
@@ -198,7 +272,11 @@ class BaseApplicationWorker(ABC):
             )
 
     async def _transition_to_in_progress(self, application: Application) -> None:
-        """Mark the application as in_progress and record the event."""
+        """
+        Mark the application as in_progress and record the event.
+        State change and event are flushed together to ensure atomicity
+        within the caller's transaction boundary.
+        """
         previous_status = application.status.value
         application.status = ApplicationStatus.in_progress
         application.attempt_count += 1
@@ -220,6 +298,10 @@ class BaseApplicationWorker(ABC):
         """
         Update the application status based on the WorkerResult
         and record an ApplicationEvent.
+
+        The state update and event recording share a single flush
+        to ensure they are persisted atomically within the caller's
+        transaction boundary.
         """
         if result.outcome == WorkerOutcome.success:
             application.status = ApplicationStatus.success
