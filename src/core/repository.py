@@ -14,10 +14,11 @@ Design rules:
 
 from __future__ import annotations
 
+import math
 import uuid
 from typing import Any, Generic, Sequence, TypeVar
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
@@ -64,7 +65,6 @@ class PaginatedResult(Generic[ModelT]):
     def pages(self) -> int:
         if self.pagination.page_size == 0:
             return 0
-        import math
 
         return math.ceil(self.total / self.pagination.page_size)
 
@@ -109,15 +109,12 @@ class BaseRepository(Generic[ModelT]):
         try:
             self._session.add(instance)
             await self._session.flush()
-            await self._session.refresh(instance)
             return instance
         except IntegrityError as exc:
-            await self._session.rollback()
             raise RepositoryError(
                 f"Integrity error creating {self.model.__name__}: {exc.orig}"
             ) from exc
         except SQLAlchemyError as exc:
-            await self._session.rollback()
             raise RepositoryError(
                 f"Database error creating {self.model.__name__}: {exc}"
             ) from exc
@@ -216,12 +213,16 @@ class BaseRepository(Generic[ModelT]):
     # ------------------------------------------------------------------
 
     async def exists(self, *where_clauses: Any) -> bool:
-        """Return True if at least one row matches where_clauses."""
-        stmt = select(func.count()).select_from(self.model)
+        """
+        Return True if at least one row matches where_clauses.
+        Uses a short-circuiting existence query for performance.
+        """
+        stmt = select(1).select_from(self.model)
         if where_clauses:
             stmt = stmt.where(*where_clauses)
+        stmt = stmt.limit(1)
         result = await self._session.execute(stmt)
-        return (result.scalar_one() or 0) > 0
+        return result.first() is not None
 
     async def count(self, *where_clauses: Any) -> int:
         """Return the number of rows matching where_clauses."""
@@ -246,15 +247,12 @@ class BaseRepository(Generic[ModelT]):
             setattr(instance, field, value)
         try:
             await self._session.flush()
-            await self._session.refresh(instance)
             return instance
         except IntegrityError as exc:
-            await self._session.rollback()
             raise RepositoryError(
                 f"Integrity error updating {self.model.__name__}: {exc.orig}"
             ) from exc
         except SQLAlchemyError as exc:
-            await self._session.rollback()
             raise RepositoryError(
                 f"Database error updating {self.model.__name__}: {exc}"
             ) from exc
@@ -272,15 +270,24 @@ class BaseRepository(Generic[ModelT]):
             await self._session.delete(instance)
             await self._session.flush()
         except SQLAlchemyError as exc:
-            await self._session.rollback()
             raise RepositoryError(
                 f"Database error deleting {self.model.__name__}: {exc}"
             ) from exc
 
     async def delete_by_id(self, entity_id: uuid.UUID) -> None:
         """
-        Load an entity by primary key and delete it.
-        Raises EntityNotFound if the entity does not exist.
+        Delete an entity by primary key using a direct DELETE statement.
+        Raises EntityNotFound if no matching row was affected.
         """
-        instance = await self.get_by_id(entity_id)
-        await self.delete(instance)
+        stmt = delete(self.model).where(self.model.id == entity_id)
+        try:
+            result = await self._session.execute(stmt)
+            await self._session.flush()
+            if result.rowcount == 0:
+                raise EntityNotFound(self.model.__name__, entity_id)
+        except EntityNotFound:
+            raise
+        except SQLAlchemyError as exc:
+            raise RepositoryError(
+                f"Database error deleting {self.model.__name__}: {exc}"
+            ) from exc

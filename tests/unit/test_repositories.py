@@ -1155,7 +1155,7 @@ async def test_rollback_on_integrity_error(session):
     """
     Creating two raw messages with the same (telegram_message_id, channel_id)
     violates the unique constraint — BaseRepository.create() should raise
-    RepositoryError after rolling back the session.
+    RepositoryError without managing the session transaction (caller owns rollback).
     """
     repo = JobRawMessageRepository(session)
     await repo.create(make_raw_message(telegram_message_id=42, channel_id=-100))
