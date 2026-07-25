@@ -47,3 +47,4 @@ class AIEnrichmentResponse(BaseModel):
     relevance_score: float
     reasoning: str
     confidence: float
+    prompt_version: Optional[str] = None

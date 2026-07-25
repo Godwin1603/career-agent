@@ -32,9 +32,15 @@ RAW JOB DESCRIPTION:
 {raw_text}
 """
 
+    PROMPT_VERSION = "v1"
+
     @classmethod
     def build_prompt(cls, raw_text: str) -> str:
         """
         Constructs the complete prompt string.
         """
         return cls.TEMPLATE.strip().format(raw_text=raw_text)
+
+    @classmethod
+    def get_version(cls) -> str:
+        return cls.PROMPT_VERSION

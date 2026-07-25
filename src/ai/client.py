@@ -16,13 +16,27 @@ class AIError(Exception):
 
 
 class AIRetryableError(AIError):
-    """Exception raised when an AI operation fails but can be retried (e.g. timeout, 5xx)."""
+    """
+    Exception raised when an AI operation fails but can be retried.
+    Includes:
+    - timeout
+    - HTTP 5xx errors
+    - rate limiting (429)
+    - temporary Vertex AI failures
+    """
 
     pass
 
 
 class AIValidationError(AIError):
-    """Exception raised when the AI returns output that does not match the requested schema."""
+    """
+    Exception raised when the AI returns output that cannot be processed.
+    Non-retryable.
+    Includes:
+    - invalid schema
+    - validation failure
+    - unsupported response
+    """
 
     pass
 

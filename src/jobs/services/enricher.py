@@ -53,34 +53,42 @@ class JobEnrichmentService:
             response_dto = await self.ai_client.generate_structured(
                 prompt=prompt, schema=AIEnrichmentResponse
             )
+            # Add prompt version if supported
+            response_dto.prompt_version = JobExtractionPromptBuilder.get_version()
         except AIRetryableError as e:
-            logger.error(f"Retryable AI error enriching job {job_id}: {e}")
+            logger.error(
+                f"Retryable AI error enriching job {job_id}: {e.__class__.__name__}"
+            )
             return False
         except AIValidationError as e:
-            logger.error(f"Validation error enriching job {job_id}: {e}")
+            logger.error(
+                f"Validation error enriching job {job_id}: {e.__class__.__name__}"
+            )
             # The prompt requires returning a retryable failure for AI failures.
             # So we don't update the status to failed, we return False to trigger a retry.
             return False
         except Exception as e:
-            logger.error(f"Unexpected error enriching job {job_id}: {e}")
+            logger.error(
+                f"Unexpected error enriching job {job_id}: {e.__class__.__name__}"
+            )
             return False
 
         # Map AI results back to the Job model
-        job.company_name = response_dto.company_name or job.company_name
-        job.role_title = response_dto.role_title or job.role_title
-        job.location = response_dto.location or job.location
-        job.is_remote = (
-            response_dto.is_remote
-            if response_dto.is_remote is not None
-            else job.is_remote
-        )
-        job.application_url = response_dto.application_url or job.application_url
-        job.email_address = response_dto.email_address or job.email_address
-        job.google_form_url = response_dto.google_form_url or job.google_form_url
-        job.salary_range = response_dto.salary_range or job.salary_range
-        job.detected_portal = response_dto.detected_portal or job.detected_portal
+        from src.jobs.services.mapper import AIEnrichmentMapper
 
-        job.relevance_score = response_dto.relevance_score
+        job = AIEnrichmentMapper.map_to_job(job, response_dto)
+
+        # Log AI extraction success (no raw prompt/response/resume text)
+        logger.info(
+            f"Successfully enriched job {job_id}",
+            extra={
+                "job_id": str(job_id),
+                "model_name": self.ai_client.model_name,
+                "prompt_version": response_dto.prompt_version,
+                "relevance_score": response_dto.relevance_score,
+                "success": True,
+            },
+        )
 
         # We assume the job is now successfully processed
         job.status = JobStatus.enriched
