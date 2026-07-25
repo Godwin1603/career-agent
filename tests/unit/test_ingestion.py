@@ -1,11 +1,6 @@
 import pytest
-import pytest_asyncio
-from sqlalchemy import event
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
 
 import src.core.model_registry  # noqa: F401
-from src.core.database import Base
 from src.core.enums import RawMessageStatus
 from src.jobs.services.ingestion import MessageIngestionService
 from src.jobs.services.normalizer import JobNormalizer
@@ -107,6 +102,13 @@ async def test_ingestion_service_repository_failure(session, monkeypatch):
     assert raw_msg.status == RawMessageStatus.failed
 
 
+import pytest_asyncio
+from sqlalchemy import event
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
+
+from src.core.database import Base
+
 TEST_DATABASE_URL = "sqlite+aiosqlite://"
 
 
@@ -123,7 +125,7 @@ async def engine():
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
 
-    jsonb_columns: list[sa.Column] = []
+    jsonb_columns = []
     for table in Base.metadata.tables.values():
         for column in table.columns:
             if isinstance(column.type, JSONB):

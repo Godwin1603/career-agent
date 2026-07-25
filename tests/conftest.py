@@ -5,12 +5,13 @@
 import subprocess
 
 import pytest
+import pytest_asyncio
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from src.core.config import settings
 
 
-@pytest.fixture(scope="session")
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def db_engine():
     """
     Runs 'alembic upgrade head' against the configured DATABASE_URL and yields
@@ -39,7 +40,7 @@ async def db_engine():
     await engine.dispose()
 
 
-@pytest.fixture(scope="session")
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def db_engine_after_downgrade(db_engine):
     """
     Runs 'alembic downgrade base' against the already-upgraded database and
