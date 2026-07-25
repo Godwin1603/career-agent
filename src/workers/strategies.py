@@ -35,15 +35,14 @@ class BaseStrategy(ABC):
 class PortalStrategy(BaseStrategy):
     """
     Abstraction for portal-based job applications (e.g. Workday, Lever).
-    Concrete implementation will use Playwright for browser automation.
+    Now uses Playwright for browser automation.
     """
 
     async def execute(self, context: WorkerContext) -> WorkerResult:
-        """Mock implementation — to be replaced with Playwright automation."""
-        raise NotImplementedError(
-            "PortalStrategy.execute() is not yet implemented. "
-            "Awaiting Playwright integration in a future phase."
-        )
+        from src.workers.playwright.strategy import PlaywrightPortalStrategy
+
+        strategy = PlaywrightPortalStrategy()
+        return await strategy.execute(context)
 
 
 class FormStrategy(BaseStrategy):
