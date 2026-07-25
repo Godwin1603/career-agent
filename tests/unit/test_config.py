@@ -56,4 +56,4 @@ def test_config_fails_if_missing_required(monkeypatch):
     from src.core.config import Settings
 
     with pytest.raises(ValidationError):
-        Settings()
+        Settings(_env_file=None)
