@@ -125,3 +125,14 @@ def test_router_all_strategies(router):
     assert ApplicationStrategy.form in result.strategies
     assert ApplicationStrategy.email in result.strategies
     assert len(result.strategies) == 3
+
+
+def test_router_exactly_at_threshold(router):
+    job = Job(
+        relevance_score=settings.RELEVANCE_THRESHOLD,
+        application_url="https://portal.com/job/123",
+    )
+    result = router.route(job)
+
+    assert result.skipped is False
+    assert result.strategies == [ApplicationStrategy.portal]

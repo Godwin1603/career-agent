@@ -42,7 +42,8 @@ class TaskDispatcher:
 
         for strategy in routing_result.strategies:
             try:
-                await self._dispatch_strategy(job, strategy)
+                async with self._session.begin_nested():
+                    await self._dispatch_strategy(job, strategy)
             except Exception as e:
                 # Catch unexpected dispatcher-level exceptions so they don't halt other strategies
                 logger.error(
@@ -79,16 +80,43 @@ class TaskDispatcher:
             task_type=task_type,
         )
 
+        import time
+
+        start_time = time.monotonic()
         try:
             self._enqueue_task(strategy, payload)
-        except CloudTaskRetryableError as e:
+            latency = time.monotonic() - start_time
+            logger.info(
+                "Successfully dispatched task",
+                extra={
+                    "job_id": str(job.id),
+                    "strategy": strategy.value,
+                    "enqueue_latency": latency,
+                    "success": True,
+                },
+            )
+        except CloudTaskRetryableError:
+            latency = time.monotonic() - start_time
             logger.error(
-                f"Retryable error dispatching task {task_type} for job {job.id}: {e}"
+                "Retryable error dispatching task",
+                extra={
+                    "job_id": str(job.id),
+                    "strategy": strategy.value,
+                    "enqueue_latency": latency,
+                    "success": False,
+                },
             )
             # The application status remains pending. It can be retried later.
         except CloudTaskTerminalError as e:
+            latency = time.monotonic() - start_time
             logger.error(
-                f"Terminal error dispatching task {task_type} for job {job.id}: {e}"
+                "Terminal error dispatching task",
+                extra={
+                    "job_id": str(job.id),
+                    "strategy": strategy.value,
+                    "enqueue_latency": latency,
+                    "success": False,
+                },
             )
             # Mark as dispatch_failed (ApplicationStatus.failed)
             application.status = ApplicationStatus.failed

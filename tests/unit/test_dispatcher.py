@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+import src.core.model_registry  # noqa: F401
 from src.applications.dto import RoutingResult, TaskPayload
 from src.applications.models import Application
 from src.applications.services.dispatcher import TaskDispatcher
@@ -20,6 +21,13 @@ def mock_session():
     session = AsyncMock()
     # Ensure flush is an async mock
     session.flush = AsyncMock()
+
+    # Mock begin_nested to be an async context manager
+    mock_context_manager = AsyncMock()
+    mock_context_manager.__aenter__.return_value = None
+    mock_context_manager.__aexit__.return_value = None
+    session.begin_nested = MagicMock(return_value=mock_context_manager)
+
     return session
 
 
