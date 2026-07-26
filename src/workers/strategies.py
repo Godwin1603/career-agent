@@ -52,11 +52,11 @@ class FormStrategy(BaseStrategy):
     """
 
     async def execute(self, context: WorkerContext) -> WorkerResult:
-        """Mock implementation — to be replaced with form automation."""
-        raise NotImplementedError(
-            "FormStrategy.execute() is not yet implemented. "
-            "Awaiting Google Forms integration in a future phase."
-        )
+        """Execute Google Forms automation."""
+        from src.workers.playwright.google_forms_strategy import GoogleFormsStrategy
+
+        strategy = GoogleFormsStrategy()
+        return await strategy.execute(context)
 
 
 class EmailStrategy(BaseStrategy):
