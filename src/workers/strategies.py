@@ -62,12 +62,23 @@ class FormStrategy(BaseStrategy):
 class EmailStrategy(BaseStrategy):
     """
     Abstraction for email-based job applications.
-    Concrete implementation will use the Gmail API.
+    Delegates to GmailEmailStrategy (Phase 10).
+
+    The GmailClient is built lazily from settings on first call.
+    Workers that need a custom GmailClient should construct
+    GmailEmailStrategy directly and inject it.
     """
 
     async def execute(self, context: WorkerContext) -> WorkerResult:
-        """Mock implementation — to be replaced with Gmail API integration."""
-        raise NotImplementedError(
-            "EmailStrategy.execute() is not yet implemented. "
-            "Awaiting Gmail API integration in a future phase."
+        from src.core.config import settings
+        from src.integrations.gmail.client import GmailClient
+        from src.integrations.gmail.email_strategy import GmailEmailStrategy
+
+        client = GmailClient(
+            client_id=settings.GMAIL_OAUTH_CLIENT_ID,
+            client_secret=settings.GMAIL_OAUTH_CLIENT_SECRET,
+            refresh_token=settings.GMAIL_OAUTH_REFRESH_TOKEN,
+            sender_address=settings.GMAIL_SENDER_ADDRESS,
         )
+        strategy = GmailEmailStrategy(gmail_client=client)
+        return await strategy.execute(context)
