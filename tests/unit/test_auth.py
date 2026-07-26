@@ -123,6 +123,16 @@ class TestAuthenticationResult:
         result = AuthenticationResult(success=True)
         assert isinstance(result.metadata, dict)
 
+    def test_result_version_is_v1(self):
+        result = AuthenticationResult(success=True)
+        assert result.result_version == "v1"
+
+    def test_result_version_constant_matches_field(self):
+        from src.auth.dto import RESULT_VERSION
+
+        result = AuthenticationResult(success=True)
+        assert result.result_version == RESULT_VERSION
+
 
 class TestAuthenticationState:
     def test_all_states_present(self):
@@ -479,6 +489,8 @@ class TestAuthenticationOrchestrator:
 
         assert result.metadata.get("portal") == "lever"
         assert result.metadata.get("profile_id") == "lever_p1"
+        # M-02: username must never appear in result metadata
+        assert "username" not in result.metadata
 
 
 # ---------------------------------------------------------------------------

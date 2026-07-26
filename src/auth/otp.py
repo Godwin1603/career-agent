@@ -97,7 +97,17 @@ class MockOTPService(OTPService):
     """
     Mock OTP service for unit testing and local development.
 
-    Returns a configurable fixed code without any email lookup.
+    DETERMINISTIC BEHAVIOUR
+    -----------------------
+    - ``request_latest_otp`` always returns *fixed_otp* immediately;
+      no inbox is consulted and no I/O is performed.
+    - ``wait_for_otp`` yields control once (``await asyncio.sleep(0)``)
+      then returns *fixed_otp*.  It never waits longer than one event-loop
+      tick regardless of *timeout_seconds*.
+    - ``extract_code`` ignores *raw_text* and returns *fixed_otp*.
+    - Call counts are tracked on ``request_call_count`` /
+      ``wait_call_count`` for assertion in tests.
+    - OTP values are NEVER written to logs.
     """
 
     def __init__(self, fixed_otp: str = "123456") -> None:

@@ -122,12 +122,32 @@ class SessionManager:
 
     async def validate_session(self, profile_id: str) -> bool:
         """
-        Return ``True`` when a non-empty session marker exists.
+        Return ``True`` when a non-empty session marker file exists for
+        *profile_id*.
 
-        This is a lightweight disk check only.  It does NOT make network
-        requests or open a browser.
+        WHAT THIS CHECKS
+        ----------------
+        This method checks only the presence and non-emptiness of the
+        ``session.json`` marker file on disk.  It does **NOT**:
 
-        A ``False`` return value indicates the caller must re-authenticate.
+        - Open a browser or make any network requests.
+        - Validate that the Chromium cookies in the profile are still
+          accepted by the remote portal (i.e. that the session has not
+          expired server-side).
+        - Verify the integrity of the marker file's JSON content beyond
+          confirming it is non-empty text.
+
+        IMPLICATION FOR CALLERS
+        -----------------------
+        A ``True`` return value means "a session was previously saved and
+        the marker is intact."  The caller **must** treat a subsequent HTTP
+        401 / redirect-to-login as a signal that the remote session has
+        expired and call :meth:`invalidate_session` followed by a fresh
+        login.
+
+        A ``False`` return value means no marker exists (first run, or
+        after an explicit :meth:`invalidate_session` call) and the caller
+        must perform a fresh login.
         """
         path = self._session_path(profile_id)
         if not path.exists():

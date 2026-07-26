@@ -97,6 +97,18 @@ class MockVerificationLinkService(VerificationLinkService):
     Mock verification link service for unit testing and local development.
 
     Returns a configurable fixed URL without any email lookup.
+
+    DETERMINISTIC BEHAVIOUR
+    -----------------------
+    - ``find_verification_link`` always returns *fixed_url* immediately;
+      no inbox is consulted and no I/O is performed.
+    - ``wait_for_verification`` yields control once
+      (``await asyncio.sleep(0)``) then returns *fixed_url*.  It never
+      waits longer than one event-loop tick regardless of *timeout_seconds*.
+    - ``extract_first_link`` ignores *email_body* and returns *fixed_url*.
+    - Call counts are tracked on ``find_call_count`` /
+      ``wait_call_count`` for assertion in tests.
+    - Verification URLs are NEVER written to logs.
     """
 
     def __init__(

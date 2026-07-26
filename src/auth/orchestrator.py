@@ -96,8 +96,12 @@ class AuthenticationOrchestrator:
             )
 
         # ── Step 2: Load credentials ───────────────────────────────────
+        # The credential object is obtained solely to prove credentials exist.
+        # It is dereferenced immediately after the check so the GC can reclaim
+        # the secret strings — secrets must not be held longer than necessary.
         try:
-            await self._credential_provider.get_credentials(portal)
+            _credential = await self._credential_provider.get_credentials(portal)
+            del _credential  # H-01: release secret reference immediately
         except MissingCredentialsError as exc:
             logger.error(
                 "Authentication failed — missing credentials (portal=%r): %s",
@@ -148,10 +152,11 @@ class AuthenticationOrchestrator:
                 success=True,
                 session_loaded=True,
                 metadata={
+                    # M-02: only portal, profile_id, and state are recorded.
+                    # username / credentials are NEVER stored in metadata.
                     "state": AuthenticationState.session_loaded,
                     "portal": portal,
                     "profile_id": profile_id,
-                    "username": identity.username,
                 },
             )
 
@@ -165,9 +170,10 @@ class AuthenticationOrchestrator:
             success=True,
             requires_login=True,
             metadata={
+                # M-02: only portal, profile_id, and state are recorded.
+                # username / credentials are NEVER stored in metadata.
                 "state": AuthenticationState.requires_login,
                 "portal": portal,
                 "profile_id": profile_id,
-                "username": identity.username,
             },
         )

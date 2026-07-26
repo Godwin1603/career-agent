@@ -51,7 +51,19 @@ class MockSecretProvider(SecretProvider):
     """
     In-memory secret store used for development and unit testing.
 
-    Secrets are provided via the constructor and are never written to logs.
+    DETERMINISTIC BEHAVIOUR
+    -----------------------
+    - Secrets are stored in the dict supplied to the constructor.
+    - ``get_secret(name)`` returns the value for *name* synchronously
+      (wrapped in a coroutine); it never performs I/O.
+    - If *name* is absent, :class:`SecretNotFoundError` is raised — no
+      fallback, no default, no partial match.
+    - ``set_secret`` / ``remove_secret`` mutate the in-memory store
+      immediately and are visible to any subsequent ``get_secret`` call
+      within the same instance.
+    - No randomness, no network calls, no side effects outside the instance.
+
+    Secrets are never written to logs.
 
     Usage::
 

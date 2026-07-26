@@ -59,6 +59,11 @@ class IdentityContext(BaseModel):
         )
 
 
+# Versioning allows consumers to detect structural changes in AuthenticationResult
+# without schema migrations.  Increment when fields are added or semantics change.
+RESULT_VERSION = "v1"
+
+
 class AuthenticationResult(BaseModel):
     """
     Result returned by the authentication orchestrator.
@@ -69,6 +74,7 @@ class AuthenticationResult(BaseModel):
     session_loaded: True when an existing session was reused.
     failure_reason: Human-readable description for failures.
     metadata: Non-sensitive supplementary data.
+    result_version: Structural version of this DTO (see RESULT_VERSION).
     """
 
     model_config = {"frozen": True}
@@ -79,3 +85,4 @@ class AuthenticationResult(BaseModel):
     session_loaded: bool = False
     failure_reason: Optional[str] = None
     metadata: dict = Field(default_factory=dict)
+    result_version: str = RESULT_VERSION
