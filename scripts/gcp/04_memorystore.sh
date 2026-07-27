@@ -32,7 +32,7 @@ else
     --size=1 \
     --region="${REGION}" \
     --network="projects/${PROJECT_ID}/global/networks/${NETWORK}" \
-    --tier=standard_ha \
+    --tier=standard \
     --redis-version=redis_7_0
 fi
 
