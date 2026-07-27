@@ -65,7 +65,7 @@ else
     --storage-size=10GB \
     --storage-auto-increase \
     --require-ssl \
-    --enable-bin-log \
+    --enable-point-in-time-recovery \
     --backup-start-time=02:00 \
     --availability-type=REGIONAL
 fi
