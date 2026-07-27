@@ -57,7 +57,7 @@ else
   echo "Creating PostgreSQL 15 instance (this takes 5-10 minutes)..."
   gcloud sql instances create "${INSTANCE_NAME}" \
     --database-version=POSTGRES_15 \
-    --tier=db-custom-1-3840 \
+    --tier=db-f1-micro \
     --region="${REGION}" \
     --network="${NETWORK}" \
     --no-assign-ip \
@@ -67,7 +67,7 @@ else
     --require-ssl \
     --enable-point-in-time-recovery \
     --backup-start-time=02:00 \
-    --availability-type=REGIONAL
+    --availability-type=ZONAL
 fi
 
 # 3. Create Database

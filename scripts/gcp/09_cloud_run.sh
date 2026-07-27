@@ -50,7 +50,7 @@ gcloud run deploy "${SERVICE_NAME}" \
   --subnet="default" \
   --vpc-egress="private-ranges-only" \
   --no-allow-unauthenticated \
-  --max-instances=10 \
+  --max-instances=2 \
   --cpu=1 \
   --memory=512Mi \
   --add-cloudsql-instances="${PROJECT_ID}:${REGION}:career-agent-db-instance" \

@@ -30,11 +30,6 @@ else
   gcloud storage buckets create "gs://${BUCKET_NAME}" \
     --location="${REGION}" \
     --uniform-bucket-level-access
-
-  # Object Versioning protects against accidental overwrites or deletes of resumes/artifacts.
-  # Enable versioning for production safety.
-  echo "Enabling Object Versioning..."
-  gcloud storage buckets update "gs://${BUCKET_NAME}" --versioning
 fi
 
 echo "========================================="

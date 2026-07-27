@@ -26,13 +26,13 @@ gcloud config set project "${PROJECT_ID}"
 if gcloud redis instances describe "${REDIS_NAME}" --region="${REGION}" >/dev/null 2>&1; then
   echo "INFO: Redis instance ${REDIS_NAME} already exists. Skipping creation."
 else
-  echo "Creating High-Availability Redis instance (this takes about 5 minutes)..."
-  # Standard HA tier provides automated failover to a replica across zones.
+  echo "Creating Basic Tier Redis instance (this takes about 5 minutes)..."
+  # Basic tier is cost-effective for single-user applications that do not strictly require failover replicas.
   gcloud redis instances create "${REDIS_NAME}" \
     --size=1 \
     --region="${REGION}" \
     --network="projects/${PROJECT_ID}/global/networks/${NETWORK}" \
-    --tier=standard \
+    --tier=basic \
     --redis-version=redis_7_0
 fi
 
